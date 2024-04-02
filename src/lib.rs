@@ -4,14 +4,14 @@ use std::sync::atomic::AtomicUsize;
 pub mod disk_manager;
 pub mod disk_scheduler;
 pub mod replacer;
-pub mod storage_manager;
 
 type PageId = usize;
 type FrameId = usize;
 type AtomicPageId = AtomicUsize;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-struct Page {
+
+pub struct Page {
     id: PageId,
     data: [u8; PAGE_SIZE],
     pin_count: u32, // ページが現在使用中であるかどうかを示す。
@@ -20,7 +20,7 @@ struct Page {
 }
 
 impl Page {
-    fn new(id: PageId, data: [u8; PAGE_SIZE]) -> Self {
+    pub fn new(id: PageId, data: [u8; PAGE_SIZE]) -> Self {
         Self {
             id,
             data,
@@ -28,6 +28,10 @@ impl Page {
             is_dirty: false,
             last_used_at: 0,
         }
+    }
+
+    pub fn get_id(&self) -> PageId {
+        self.id
     }
 }
 type Frames = HashMap<FrameId, Page>;

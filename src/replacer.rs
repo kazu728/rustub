@@ -5,12 +5,17 @@ enum ReplacerError {
     FrameEmpty,
 }
 
-trait Replacer {
+pub trait Replacer {
+    fn new() -> Self;
     fn replace(frames: &mut Frames, new_page: Page) -> Result<&Frames, ReplacerError>;
 }
 
-struct LRUReplacer;
+pub struct LRUReplacer;
 impl Replacer for LRUReplacer {
+    fn new() -> Self {
+        LRUReplacer
+    }
+
     fn replace(frames: &mut Frames, new_page: Page) -> Result<&Frames, ReplacerError> {
         let oldest_frame_key = frames
             .iter()

@@ -4,21 +4,23 @@ use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
+#[derive(Debug)]
 pub enum Request {
     Read(PageId, Vec<u8>),
     Write(PageId, Vec<u8>),
 }
 
+#[derive(Debug)]
 pub enum DiskSchedulerError {
     DiskManagerError(DiskManagerError),
 }
 
+#[derive(Debug)]
 pub struct DiskScheduler {
     request_queue: Arc<Mutex<VecDeque<Request>>>,
     worker: Option<JoinHandle<()>>,
 }
 
-// DiskManagerの参照と並列の問題を解消する
 impl DiskScheduler {
     pub fn new(file_name: &str) -> Result<Self, DiskSchedulerError> {
         let request_queue = Arc::new(Mutex::new(VecDeque::new()));
