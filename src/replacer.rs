@@ -1,13 +1,8 @@
-use crate::{Frames, Page};
-
-#[derive(Debug, PartialEq, Eq)]
-enum ReplacerError {
-    FrameEmpty,
-}
+use crate::{FrameId, Frames, Page};
 
 pub trait Replacer {
     fn new() -> Self;
-    fn replace(frames: &mut Frames, new_page: Page) -> Result<&Frames, ReplacerError>;
+    fn victim(&self, frames: &mut Frames) -> Option<FrameId>;
 }
 
 pub struct LRUReplacer;
@@ -16,16 +11,13 @@ impl Replacer for LRUReplacer {
         LRUReplacer
     }
 
-    fn replace(frames: &mut Frames, new_page: Page) -> Result<&Frames, ReplacerError> {
-        let oldest_frame_key = frames
+    fn victim(&self, frames: &mut Frames) -> Option<FrameId> {
+        frames
             .iter()
-            .filter(|(_, frame)| frame.pin_count == 0)
+            .filter(|(_, frame)| frame.is_unused())
             .min_by_key(|(_, frame)| frame.last_used_at)
             .map(|(key, _)| key)
-            .ok_or(ReplacerError::FrameEmpty)?;
-
-        frames.insert(*oldest_frame_key, new_page);
-        Ok(frames)
+            .copied()
     }
 }
 
@@ -52,11 +44,9 @@ mod tests {
         frames.insert(2, create_page(2, 0, Utc::now().timestamp_millis() - 2000));
         frames.insert(3, create_page(3, 0, Utc::now().timestamp_millis() - 3000));
 
-        let new_page = create_page(4, 0, Utc::now().timestamp_millis());
+        let frame_id = LRUReplacer::new().victim(&mut frames).unwrap();
 
-        let frames = LRUReplacer::replace(&mut frames, new_page).unwrap();
-
-        assert_eq!(frames.get(&3).unwrap(), &new_page);
+        assert_eq!(frame_id, 3);
     }
 
     #[test]
@@ -66,20 +56,17 @@ mod tests {
         frames.insert(2, create_page(2, 1, Utc::now().timestamp_millis() - 2000));
         frames.insert(3, create_page(3, 1, Utc::now().timestamp_millis() - 3000));
 
-        let new_page = create_page(4, 0, Utc::now().timestamp_millis());
+        let frame_id = LRUReplacer::new().victim(&mut frames).unwrap();
 
-        let frames = LRUReplacer::replace(&mut frames, new_page).unwrap();
-
-        assert_eq!(frames.get(&1).unwrap(), &new_page);
+        assert_eq!(frame_id, 1);
     }
 
     #[test]
     fn should_fail_on_empty_frames() {
         let mut frames = Frames::new();
-        let new_page = create_page(4, 0, Utc::now().timestamp_millis());
 
-        let frames = LRUReplacer::replace(&mut frames, new_page);
+        let maybe_frames_id = LRUReplacer::new().victim(&mut frames);
 
-        assert_eq!(frames, Err(ReplacerError::FrameEmpty));
+        assert_eq!(maybe_frames_id, None);
     }
 }
