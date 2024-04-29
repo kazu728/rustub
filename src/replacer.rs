@@ -1,4 +1,4 @@
-use crate::{FrameId, Frames, Page};
+use crate::{FrameId, Frames};
 
 pub trait Replacer {
     fn new() -> Self;
@@ -24,7 +24,7 @@ impl Replacer for LRUReplacer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::PageId;
+    use crate::{Page, PageId};
     use chrono::Utc;
 
     fn create_page(id: PageId, pin_count: u32, last_used_at: i64) -> Page {
