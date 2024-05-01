@@ -3,14 +3,12 @@ use crate::PAGE_SIZE;
 use crate::{disk_manager::DiskManager, PageId};
 use std::collections::VecDeque;
 use std::io;
-use std::sync::{Arc, Mutex};
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
-
 #[derive(Debug)]
 pub enum Request {
-    Read(PageId, Arc<Mutex<[u8; PAGE_SIZE]>>),
-    Write(PageId, Arc<Mutex<[u8; PAGE_SIZE]>>),
-    Shutdown,
+    Read(PageId, Arc<Mutex<[u8; PAGE_SIZE]>>, mpsc::Sender<()>),
+    Write(PageId, Arc<Mutex<[u8; PAGE_SIZE]>>, mpsc::Sender<()>),
 }
 
 #[derive(Debug)]
@@ -39,6 +37,7 @@ impl DiskScheduler {
         })
     }
 
+    // TODO: ロックの範囲を狭める
     pub fn spawn_worker(
         mutex_disk_manager: Arc<Mutex<DiskManager>>,
         request_queue: Arc<Mutex<VecDeque<Request>>>,
@@ -50,16 +49,19 @@ impl DiskScheduler {
 
                 if let Some(request) = request {
                     match request {
-                        Request::Read(page_id, page_data) => {
+                        Request::Read(page_id, page_data, sender) => {
                             disk_manager
                                 .read(page_id, &mut *page_data.lock().unwrap())
                                 .unwrap();
+                            sender.send(()).unwrap();
                         }
 
-                        Request::Write(page_id, page_data) => disk_manager
-                            .write(page_id, &mut *page_data.lock().unwrap())
-                            .unwrap(),
-                        Request::Shutdown => break,
+                        Request::Write(page_id, page_data, sender) => {
+                            disk_manager
+                                .write(page_id, &mut *page_data.lock().unwrap())
+                                .unwrap();
+                            sender.send(()).unwrap();
+                        }
                     }
                 } else {
                     thread::sleep(std::time::Duration::from_millis(100));
@@ -73,54 +75,42 @@ impl DiskScheduler {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fixture;
 
     #[test]
     fn read_job() {
         let disk_scheduler = DiskScheduler::new("test.db").unwrap();
 
-        let buf = Arc::new(Mutex::new([0; PAGE_SIZE]));
+        let (sender, receiver) = mpsc::channel();
+
+        let buffer = Arc::new(Mutex::new(fixture::create_random_binary_page_data()));
 
         disk_scheduler
             .request_queue
             .lock()
             .unwrap()
-            .push_back(Request::Read(0, Arc::clone(&buf)));
+            .push_back(Request::Read(0, Arc::clone(&buffer), sender));
 
-        disk_scheduler
-            .request_queue
-            .lock()
-            .unwrap()
-            .push_back(Request::Shutdown);
+        receiver.recv().unwrap();
 
-        disk_scheduler.worker.unwrap().join().unwrap();
-
-        let buf_locked = buf.lock().unwrap();
-
-        assert_eq!(*buf_locked, [0; PAGE_SIZE]);
+        assert_eq!(*buffer.lock().unwrap(), [0; PAGE_SIZE]);
     }
 
     #[test]
     fn write_job() {
         let disk_scheduler = DiskScheduler::new("test.db").unwrap();
 
-        let buf = Arc::new(Mutex::new([1; PAGE_SIZE]));
+        let (sender, receiver) = mpsc::channel();
+        let buf = Arc::new(Mutex::new(fixture::create_random_binary_page_data()));
 
         disk_scheduler
             .request_queue
             .lock()
             .unwrap()
-            .push_back(Request::Write(1, Arc::clone(&buf)));
+            .push_back(Request::Write(1, Arc::clone(&buf), sender));
 
-        disk_scheduler
-            .request_queue
-            .lock()
-            .unwrap()
-            .push_back(Request::Shutdown);
+        receiver.recv().unwrap();
 
-        disk_scheduler.worker.unwrap().join().unwrap();
-
-        let buf_locked = buf.lock().unwrap();
-
-        assert_ne!(*buf_locked, [0; PAGE_SIZE]);
+        assert_ne!(*buf.lock().unwrap(), [0; PAGE_SIZE]);
     }
 }
