@@ -89,15 +89,13 @@ impl DiskManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::fixture;
 
     #[test]
     fn read_write() {
         let mut disk_manager = DiskManager::new("test.db").unwrap();
 
-        let text = "Hello, world!";
-
-        let page_data = &mut [0 as u8; PAGE_SIZE];
-        page_data[..text.len()].copy_from_slice(text.as_bytes());
+        let page_data = &mut fixture::create_random_binary_page_data();
         disk_manager.write(0, page_data).unwrap();
 
         let mut buffer = [0; PAGE_SIZE];
@@ -110,10 +108,7 @@ mod tests {
     fn should_not_influence_other_page() {
         let mut disk_manager = DiskManager::new("test.db").unwrap();
 
-        let text = "Hello, world!";
-
-        let page_data = &mut [0 as u8; PAGE_SIZE];
-        page_data[..text.len()].copy_from_slice(text.as_bytes());
+        let page_data = &mut fixture::create_random_binary_page_data();
         disk_manager.write(1, page_data).unwrap();
 
         let mut buffer = [0; PAGE_SIZE];

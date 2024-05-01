@@ -6,11 +6,14 @@ use chrono::Utc;
 pub mod buffer_pool_manager;
 pub mod disk_manager;
 pub mod disk_scheduler;
+pub mod fixture;
 pub mod replacer;
 
 type PageId = usize;
 type FrameId = usize;
 type AtomicPageId = AtomicUsize;
+
+pub const PAGE_SIZE: usize = 4096;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 
@@ -29,7 +32,7 @@ impl Page {
             data,
             pin_count: 0,
             is_dirty: false,
-            last_used_at: 0,
+            last_used_at: Utc::now().timestamp_millis(),
         }
     }
 
@@ -52,5 +55,3 @@ impl Page {
     }
 }
 type Frames = HashMap<FrameId, Page>;
-
-const PAGE_SIZE: usize = 4096;
