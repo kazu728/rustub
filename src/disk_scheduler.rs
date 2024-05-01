@@ -79,7 +79,7 @@ mod tests {
 
     #[test]
     fn read_job() {
-        let disk_scheduler = DiskScheduler::new("test.db").unwrap();
+        let disk_scheduler = DiskScheduler::new("tests/disk_scheduler_test.db").unwrap();
 
         let (sender, receiver) = mpsc::channel();
 
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn write_job() {
-        let disk_scheduler = DiskScheduler::new("test.db").unwrap();
+        let disk_scheduler = DiskScheduler::new("tests/disk_scheduler_test.db").unwrap();
 
         let (sender, receiver) = mpsc::channel();
         let buf = Arc::new(Mutex::new(fixture::create_random_binary_page_data()));

@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn read_write() {
-        let mut disk_manager = DiskManager::new("test.db").unwrap();
+        let mut disk_manager = DiskManager::new("tests/disk_manager_test.db").unwrap();
 
         let page_data = &mut fixture::create_random_binary_page_data();
         disk_manager.write(0, page_data).unwrap();
@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     fn should_not_influence_other_page() {
-        let mut disk_manager = DiskManager::new("test.db").unwrap();
+        let mut disk_manager = DiskManager::new("tests/disk_manager_test.db").unwrap();
 
         let page_data = &mut fixture::create_random_binary_page_data();
         disk_manager.write(1, page_data).unwrap();
