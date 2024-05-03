@@ -90,11 +90,12 @@ impl DiskManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fixture;
+    use crate::fixture::{self, tear_down};
 
     #[test]
     fn read() {
-        let mut disk_manager = DiskManager::new("tests/disk_manager_test.db").unwrap();
+        let file_name = "disk_manager_read.db";
+        let mut disk_manager = DiskManager::new(file_name).unwrap();
 
         let mut buffer = [0; PAGE_SIZE];
         // このテストよりoffsetが大きいページが先にさに書き込まれた場合0埋めされるのでlimitテスト内で最も大きなページIDを指定する
@@ -102,11 +103,14 @@ mod tests {
 
         assert!(result.is_err());
         assert_eq!(buffer, [0; PAGE_SIZE]);
+
+        tear_down(file_name)
     }
 
     #[test]
     fn read_write() {
-        let mut disk_manager = DiskManager::new("tests/disk_manager_test.db").unwrap();
+        let file_name = "disk_manager_read_write.db";
+        let mut disk_manager = DiskManager::new(file_name).unwrap();
 
         let page_data = &mut fixture::create_random_binary_page_data();
         disk_manager.write(1, page_data).unwrap();
@@ -115,11 +119,14 @@ mod tests {
         disk_manager.read(1, &mut buffer).unwrap();
 
         assert_eq!(buffer, *page_data);
+
+        tear_down(file_name);
     }
 
     #[test]
     fn should_not_influence_other_page() {
-        let mut disk_manager = DiskManager::new("tests/disk_manager_test.db").unwrap();
+        let file_name = "disk_manager_should_not_influence_other_page.db";
+        let mut disk_manager = DiskManager::new(file_name).unwrap();
 
         let page_data = &mut fixture::create_random_binary_page_data();
         disk_manager.write(2, page_data).unwrap();
@@ -132,5 +139,7 @@ mod tests {
 
         disk_manager.read(2, &mut buffer).unwrap();
         assert_eq!(buffer, *page_data);
+
+        tear_down(file_name)
     }
 }

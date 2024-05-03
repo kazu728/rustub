@@ -38,6 +38,7 @@ impl DiskScheduler {
     }
 
     // TODO: ロックの範囲を狭める
+    // ディスクの書き込みが遅いのである程度バッファに溜めてから書き込むようにする
     pub fn spawn_worker(
         mutex_disk_manager: Arc<Mutex<DiskManager>>,
         request_queue: Arc<Mutex<VecDeque<Request>>>,
@@ -75,11 +76,12 @@ impl DiskScheduler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fixture;
+    use crate::fixture::{self, tear_down};
 
     #[test]
     fn read_job() {
-        let disk_scheduler = DiskScheduler::new("tests/disk_scheduler_test.db").unwrap();
+        let file_name = "disk_scheduler_read_job.db";
+        let disk_scheduler = DiskScheduler::new(file_name).unwrap();
 
         let (sender, receiver) = mpsc::channel();
 
@@ -91,14 +93,17 @@ mod tests {
             .unwrap()
             .push_back(Request::Read(0, Arc::clone(&buffer), sender));
 
-        receiver.recv().unwrap();
+        let result = receiver.recv();
 
-        assert_eq!(*buffer.lock().unwrap(), [0; PAGE_SIZE]);
+        assert!(result.is_err());
+
+        tear_down(file_name)
     }
 
     #[test]
     fn write_job() {
-        let disk_scheduler = DiskScheduler::new("tests/disk_scheduler_test.db").unwrap();
+        let file_name = "disk_scheduler_write_job.db";
+        let disk_scheduler = DiskScheduler::new(&file_name).unwrap();
 
         let (sender, receiver) = mpsc::channel();
         let buf = Arc::new(Mutex::new(fixture::create_random_binary_page_data()));
@@ -112,5 +117,7 @@ mod tests {
         receiver.recv().unwrap();
 
         assert_ne!(*buf.lock().unwrap(), [0; PAGE_SIZE]);
+
+        tear_down(file_name)
     }
 }

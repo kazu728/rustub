@@ -25,7 +25,7 @@ enum Replacement {
 }
 
 impl BufferPoolManager {
-    fn new(pool_size: usize) -> Self {
+    fn new(pool_size: usize, file_name: &str) -> Self {
         let mut free_list = LinkedList::new();
 
         for i in 1..=pool_size {
@@ -35,7 +35,7 @@ impl BufferPoolManager {
             pages: HashMap::new(),
             page_table: HashMap::new(),
             free_list,
-            disk_scheduler: DiskScheduler::new("test.db").unwrap(),
+            disk_scheduler: DiskScheduler::new(file_name).unwrap(),
             replacer: LRUReplacer::new(),
         }
     }
@@ -143,12 +143,13 @@ impl BufferPoolManager {
 mod tests {
 
     use super::*;
-    use crate::fixture;
+    use crate::fixture::{self, tear_down};
 
     const BUFFER_POOL_SIZE: usize = 5;
     #[test]
     fn test_buffer_pool_manager() {
-        let mut buffer_pool_manager = BufferPoolManager::new(BUFFER_POOL_SIZE);
+        let file_name = "buffer_pool_manager_test.db";
+        let mut buffer_pool_manager = BufferPoolManager::new(BUFFER_POOL_SIZE, file_name);
 
         // Buffer をfullにする
         for i in 1..=BUFFER_POOL_SIZE {
@@ -179,5 +180,7 @@ mod tests {
         assert_eq!(buffer_pool_manager.free_list.len(), 0);
         assert!(buffer_pool_manager.pages.get(&1).is_none());
         assert!(buffer_pool_manager.pages.contains_key(&100));
+
+        tear_down(file_name)
     }
 }
