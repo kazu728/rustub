@@ -12,6 +12,7 @@ pub enum DiskManagerError {
     FileNotOpen(std::io::Error),
     SeekError(std::io::Error),
     Unknown(std::io::Error),
+    PageNotFound,
 }
 
 #[derive(Debug)]
@@ -65,7 +66,7 @@ impl DiskManager {
         let n = file.read(page_data).unwrap();
 
         if n < PAGE_SIZE {
-            println!("Read less than a page, n: {}, page_size: {}", n, PAGE_SIZE);
+            return Err(DiskManagerError::PageNotFound);
         }
         Ok(())
     }
@@ -92,14 +93,26 @@ mod tests {
     use crate::fixture;
 
     #[test]
+    fn read() {
+        let mut disk_manager = DiskManager::new("tests/disk_manager_test.db").unwrap();
+
+        let mut buffer = [0; PAGE_SIZE];
+        // このテストよりoffsetが大きいページが先にさに書き込まれた場合0埋めされるのでlimitテスト内で最も大きなページIDを指定する
+        let result = disk_manager.read(5, &mut buffer);
+
+        assert!(result.is_err());
+        assert_eq!(buffer, [0; PAGE_SIZE]);
+    }
+
+    #[test]
     fn read_write() {
         let mut disk_manager = DiskManager::new("tests/disk_manager_test.db").unwrap();
 
         let page_data = &mut fixture::create_random_binary_page_data();
-        disk_manager.write(0, page_data).unwrap();
+        disk_manager.write(1, page_data).unwrap();
 
         let mut buffer = [0; PAGE_SIZE];
-        disk_manager.read(0, &mut buffer).unwrap();
+        disk_manager.read(1, &mut buffer).unwrap();
 
         assert_eq!(buffer, *page_data);
     }
@@ -109,14 +122,15 @@ mod tests {
         let mut disk_manager = DiskManager::new("tests/disk_manager_test.db").unwrap();
 
         let page_data = &mut fixture::create_random_binary_page_data();
-        disk_manager.write(1, page_data).unwrap();
+        disk_manager.write(2, page_data).unwrap();
 
         let mut buffer = [0; PAGE_SIZE];
+        let result = disk_manager.read(3, &mut buffer);
+
+        assert!(result.is_err());
+        assert_eq!(buffer, [0; PAGE_SIZE]);
+
         disk_manager.read(2, &mut buffer).unwrap();
-
-        assert_ne!(buffer, *page_data);
-
-        disk_manager.read(1, &mut buffer).unwrap();
         assert_eq!(buffer, *page_data);
     }
 }
